@@ -50,11 +50,17 @@ class GeofenceEvent(Event):
         super().__init__(d_from, d_to)
         self.geofence = geofence
 
+    def __repr__(self) -> str:
+        return "<GeofenceEvent {} {} - {}>".format(self.geofence.name, self.d_from, self.d_to)
+
 
 class TravelEvent(Event):
     def __init__(self, d_from, d_to, distance):
         super().__init__(d_from, d_to)
         self.distance = distance
+
+    def __repr__(self) -> str:
+        return "<TravelEvent {} {} - {}>".format(self.distance, self.d_from, self.d_to)
 
 
 class DataLoader:
