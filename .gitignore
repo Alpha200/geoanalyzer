@@ -131,4 +131,4 @@ dmypy.json
 .pyre/
 
 .idea
-testanalyzer.py
+config.yaml

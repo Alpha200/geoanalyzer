@@ -50,6 +50,14 @@ class GeofenceEvent(Event):
         super().__init__(d_from, d_to)
         self.geofence = geofence
 
+    def to_dict(self):
+        return {
+            'event_type': "geofence",
+            'from': self.d_from.isoformat(),
+            'to': self.d_to.isoformat(),
+            'geofence': self.geofence.name
+        }
+
     def __repr__(self) -> str:
         return "<GeofenceEvent {} {} - {}>".format(self.geofence.name, self.d_from, self.d_to)
 
@@ -58,6 +66,14 @@ class TravelEvent(Event):
     def __init__(self, d_from, d_to, distance):
         super().__init__(d_from, d_to)
         self.distance = distance
+
+    def to_dict(self):
+        return {
+            'event_type': "travel",
+            'from': self.d_from.isoformat(),
+            'to': self.d_to.isoformat(),
+            'distance': self.distance
+        }
 
     def __repr__(self) -> str:
         return "<TravelEvent {} {} - {}>".format(self.distance, self.d_from, self.d_to)

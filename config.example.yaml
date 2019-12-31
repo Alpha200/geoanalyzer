@@ -1,0 +1,6 @@
+---
+traccar:
+  base_uri: https://traccar.example.com
+  username: username
+  password: password
+  device_id: 1
