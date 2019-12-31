@@ -79,6 +79,13 @@ class TravelEvent(Event):
         return "<TravelEvent {} {} - {}>".format(self.distance, self.d_from, self.d_to)
 
 
+class GeoPosition():
+    def __init__(self, date, position, accuracy):
+        self.date = date
+        self.position = position
+        self.accuracy = accuracy
+
+
 class DataLoader:
     def __init__(self, base_uri, username, password):
         self.base_uri = base_uri
@@ -117,7 +124,15 @@ class DataLoader:
         ), auth=(self.username, self.password))
 
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+
+        return [
+            GeoPosition(
+                parse(position["fixTime"]),
+                (position['latitude'], position['longitude']),
+                position['accuracy']
+            ) for position in data
+        ]
 
 
 class DataAnalyzer:
@@ -137,19 +152,18 @@ class DataAnalyzer:
         last_tp = None
 
         for index, position in enumerate(positions):
-            current_geofence = self.get_geofence((position['latitude'], position['longitude']))
-            current_tp = parse(position['fixTime'])
+            current_geofence = self.get_geofence(position.position)
 
             if current_geofence is not None:
                 if current_event is None:
-                    current_event = GeofenceEvent(current_tp, None, current_geofence)
+                    current_event = GeofenceEvent(position.date, None, current_geofence)
             else:
                 if isinstance(current_event, GeofenceEvent):
                     current_event.d_to = last_tp
                     events.append(current_event)
                     current_event = None
 
-            last_tp = current_tp
+            last_tp = position.date
 
         if current_event is not None:
             current_event.d_to = last_tp
