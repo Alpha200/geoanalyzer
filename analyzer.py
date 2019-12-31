@@ -40,50 +40,90 @@ class CircleGeofence(Geofence):
 
 
 class Event(ABC):
-    def __init__(self, d_from, d_to):
-        self.d_from = d_from
-        self.d_to = d_to
+    def __init__(self):
+        self.geopoints = []
+
+    @property
+    def d_from(self):
+        return self.geopoints[0].date
+
+    @property
+    def d_to(self):
+        return self.geopoints[-1].date
 
 
 class GeofenceEvent(Event):
-    def __init__(self, d_from, d_to, geofence):
-        super().__init__(d_from, d_to)
+    def __init__(self, geofence):
+        super().__init__()
         self.geofence = geofence
 
-    def to_dict(self):
-        return {
+    def to_dict(self, with_geopoints=True):
+        result = {
             'event_type': "geofence",
             'from': self.d_from.isoformat(),
             'to': self.d_to.isoformat(),
-            'geofence': self.geofence.name
+            'geofence': self.geofence.name,
         }
+
+        if with_geopoints:
+            result["geopoints"] = [geopoint.to_dict() for geopoint in self.geopoints]
+
+        return result
 
     def __repr__(self) -> str:
         return "<GeofenceEvent {} {} - {}>".format(self.geofence.name, self.d_from, self.d_to)
 
 
 class TravelEvent(Event):
-    def __init__(self, d_from, d_to, distance):
-        super().__init__(d_from, d_to)
-        self.distance = distance
+    def __init__(self):
+        super().__init__()
 
-    def to_dict(self):
-        return {
+    @property
+    def distance(self):
+        dist = 0
+
+        for a, b in zip(self.geopoints, self.geopoints[1:]):
+            dist += a.distance(b)
+
+        return dist
+
+    def to_dict(self, with_geopoints=True):
+        result = {
             'event_type': "travel",
             'from': self.d_from.isoformat(),
             'to': self.d_to.isoformat(),
-            'distance': self.distance
+            'distance': self.distance,
         }
+
+        if with_geopoints:
+            result["geopoints"] = [geopoint.to_dict() for geopoint in self.geopoints]
+
+        return result
 
     def __repr__(self) -> str:
         return "<TravelEvent {} {} - {}>".format(self.distance, self.d_from, self.d_to)
 
 
-class GeoPosition():
+class GeoPosition:
     def __init__(self, date, position, accuracy):
         self.date = date
         self.position = position
         self.accuracy = accuracy
+
+    def distance(self, other_position):
+        """Returns the distance to other_position in m"""
+        return distance.distance(
+            self.position,
+            other_position.position
+        ).m
+
+    def to_dict(self):
+        return {
+            'date': self.date.isoformat(),
+            'latitude': self.position[0],
+            'longitude': self.position[1],
+            'accuracy': self.accuracy
+        }
 
 
 class DataLoader:
@@ -149,24 +189,48 @@ class DataAnalyzer:
     def map_positions_to_events(self, positions):
         events = []
         current_event = None
-        last_tp = None
+        last_geopoint = None
 
-        for index, position in enumerate(positions):
+        for position in positions:
             current_geofence = self.get_geofence(position.position)
 
             if current_geofence is not None:
                 if current_event is None:
-                    current_event = GeofenceEvent(position.date, None, current_geofence)
+                    current_event = GeofenceEvent(current_geofence)
+
+                if isinstance(current_event, GeofenceEvent):
+                    if current_event.geofence != current_geofence:
+                        events.append(current_event)
+                        current_event = GeofenceEvent(current_geofence)
+
+                    current_event.geopoints.append(position)
+                elif isinstance(current_event, TravelEvent):
+                    events.append(current_event)
+                    current_event = GeofenceEvent(current_geofence)
+                    current_event.geopoints.append(position)
             else:
                 if isinstance(current_event, GeofenceEvent):
-                    current_event.d_to = last_tp
                     events.append(current_event)
                     current_event = None
+                elif isinstance(current_event, TravelEvent):
+                    distance_between_points = position.distance(current_event.geopoints[-1])
 
-            last_tp = position.date
+                    if distance_between_points > 100:
+                        current_event.geopoints.append(position)
+                    else:
+                        events.append(current_event)
+                        current_event = None
+                else:
+                    distance_between_points = position.distance(last_geopoint)
+
+                    if distance_between_points > 100:
+                        current_event = TravelEvent()
+                        current_event.geopoints.append(last_geopoint)
+                        current_event.geopoints.append(position)
+
+            last_geopoint = position
 
         if current_event is not None:
-            current_event.d_to = last_tp
             events.append(current_event)
 
         return events
