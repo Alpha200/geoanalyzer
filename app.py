@@ -3,10 +3,13 @@ from datetime import timedelta
 import yaml
 from flask import Flask, jsonify, request
 from dateutil.parser import parse
+from flask_cors import CORS
+from pytz import UTC
 
 from analyzer import DataLoader, DataAnalyzer
 
 app = Flask(__name__)
+CORS(app)
 
 with open("config.yaml", "r") as f:
     conf = yaml.safe_load(f)
@@ -23,7 +26,8 @@ def map_events_to_json(events, with_geopoints=True):
 @app.route('/events/<day>')
 def get_events(day):
     date = parse(day)
-    date = date.replace(hour=0, minute=0, second=0, microsecond=0)
+    date = date.replace(microsecond=0, second=0)
+    date = date.astimezone(UTC)
 
     geofences = dl.get_geofences()
     positions = dl.get_positions(traccar_conf["device_id"], date_from=date, date_to=date + timedelta(days=1))

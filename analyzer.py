@@ -156,11 +156,11 @@ class DataLoader:
         return geofences
 
     def get_positions(self, device_id, date_from, date_to):
-        r = requests.get("{base_uri}/api/positions?deviceId={device_id}&from={d_from}Z&to={d_to}Z".format(
+        r = requests.get("{base_uri}/api/positions?deviceId={device_id}&from={d_from}&to={d_to}".format(
             base_uri=self.base_uri,
             device_id=device_id,
-            d_from=date_from.isoformat(),
-            d_to=date_to.isoformat()
+            d_from=date_from.strftime("%Y-%m-%dT%H:%MZ"),
+            d_to=date_to.strftime("%Y-%m-%dT%H:%MZ")
         ), auth=(self.username, self.password))
 
         r.raise_for_status()
@@ -221,12 +221,13 @@ class DataAnalyzer:
                         events.append(current_event)
                         current_event = None
                 else:
-                    distance_between_points = position.distance(last_geopoint)
+                    if last_geopoint is not None:
+                        distance_between_points = position.distance(last_geopoint)
 
-                    if distance_between_points > 100:
-                        current_event = TravelEvent()
-                        current_event.geopoints.append(last_geopoint)
-                        current_event.geopoints.append(position)
+                        if distance_between_points > 100:
+                            current_event = TravelEvent()
+                            current_event.geopoints.append(last_geopoint)
+                            current_event.geopoints.append(position)
 
             last_geopoint = position
 
