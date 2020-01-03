@@ -25,6 +25,13 @@ class PolygonGeofence(Geofence):
     def is_inside(self, point):
         return self.area.contains(Point(point))
 
+    def to_dict(self):
+        return {
+            'type': 'polygon',
+            'name': self.name,
+            'points': list(self.area.exterior.coords)
+        }
+
 
 class CircleGeofence(Geofence):
     def __init__(self, name, middle, radius):
@@ -37,6 +44,14 @@ class CircleGeofence(Geofence):
 
     def is_inside(self, point):
         return distance.distance((self.middle.x, self.middle.y), point).m < self.radius
+
+    def to_dict(self):
+        return {
+            'type': "circle",
+            'name': self.name,
+            'center': [self.middle.x, self.middle.y],
+            'radius': self.radius
+        }
 
 
 class Event(ABC):
@@ -62,7 +77,7 @@ class GeofenceEvent(Event):
             'event_type': "geofence",
             'from': self.d_from.isoformat(),
             'to': self.d_to.isoformat(),
-            'geofence': self.geofence.name,
+            'geofence': self.geofence.to_dict(),
         }
 
         if with_geopoints:
