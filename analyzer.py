@@ -2,8 +2,11 @@ import requests
 from collections import deque
 from dateutil.parser import parse
 from geopy import distance
+from geopy.geocoders import Nominatim
 from abc import ABC, abstractmethod
 from shapely.geometry import Point, Polygon, MultiPoint
+
+geolocator = Nominatim(user_agent="geoanalyzer")
 
 
 class Geofence(ABC):
@@ -82,11 +85,14 @@ class ClusterEvent(Event):
         return point.x, point.y
 
     def to_dict(self, with_geopoints=True):
+        location = geolocator.reverse("{}, {}".format(*self.centroid))
+
         result = {
             'event_type': "cluster",
             'from': self.d_from.isoformat(),
             'to': self.d_to.isoformat(),
-            'centroid': self.centroid
+            'centroid': self.centroid,
+            'location': location.address
         }
 
         if with_geopoints:
