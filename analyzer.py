@@ -1,8 +1,9 @@
 import requests
+from collections import deque
 from dateutil.parser import parse
 from geopy import distance
 from abc import ABC, abstractmethod
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, MultiPoint
 
 
 class Geofence(ABC):
@@ -65,6 +66,36 @@ class Event(ABC):
     @property
     def d_to(self):
         return self.geopoints[-1].date
+
+
+class ClusterEvent(Event):
+    def __init__(self, geopoints):
+        super().__init__()
+        self.geopoints = geopoints
+
+    @property
+    def centroid(self):
+        if len(self.geopoints) == 0:
+            return None
+
+        point = MultiPoint([point.position for point in self.geopoints]).centroid
+        return point.x, point.y
+
+    def to_dict(self, with_geopoints=True):
+        result = {
+            'event_type': "cluster",
+            'from': self.d_from.isoformat(),
+            'to': self.d_to.isoformat(),
+            'centroid': self.centroid
+        }
+
+        if with_geopoints:
+            result["geopoints"] = [geopoint.to_dict() for geopoint in self.geopoints]
+
+        return result
+
+    def __repr__(self) -> str:
+        return "<ClusterEvent {} - {}>".format(self.d_from, self.d_to)
 
 
 class GeofenceEvent(Event):
@@ -190,6 +221,11 @@ class DataLoader:
         ]
 
 
+def is_cluster_valid(geopoints):
+    points = MultiPoint([point.position for point in geopoints])
+    return not any(distance.distance((points.centroid.x, points.centroid.y), (point.x, point.y)).m > 50 for point in points)
+
+
 class DataAnalyzer:
     def __init__(self, geofences):
         self.geofences = geofences
@@ -204,7 +240,7 @@ class DataAnalyzer:
     def map_positions_to_events(self, positions):
         events = []
         current_event = None
-        last_geopoint = None
+        last_geopoints = deque([], maxlen=3)
 
         for position in positions:
             current_geofence = self.get_geofence(position.position)
@@ -235,16 +271,28 @@ class DataAnalyzer:
                     else:
                         events.append(current_event)
                         current_event = None
+                elif isinstance(current_event, ClusterEvent):
+                    if is_cluster_valid(current_event.geopoints + [position]):
+                        current_event.geopoints.append(position)
+                    else:
+                        events.append(current_event)
+                        current_event = None
+                    #elif is_cluster_valid(current_event.geopoints[1:] + [position]):
+                        # TODO: Check if this cluster is better than the other
                 else:
-                    if last_geopoint is not None:
-                        distance_between_points = position.distance(last_geopoint)
+                    if len(last_geopoints) > 0:
+                        distance_between_points = position.distance(last_geopoints[-1])
 
                         if distance_between_points > 100:
                             current_event = TravelEvent()
-                            current_event.geopoints.append(last_geopoint)
+                            current_event.geopoints.append(last_geopoints[-1])
                             current_event.geopoints.append(position)
+                        elif len(last_geopoints) >= 3:
+                            possible_cluster = list(last_geopoints) + [position]
+                            if is_cluster_valid(possible_cluster):
+                                current_event = ClusterEvent(possible_cluster)
 
-            last_geopoint = position
+            last_geopoints.append(position)
 
         if current_event is not None:
             events.append(current_event)
