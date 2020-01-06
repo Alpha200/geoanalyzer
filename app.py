@@ -21,7 +21,7 @@ def map_events_to_json(events, with_geopoints=True):
     return jsonify([event.to_dict(with_geopoints) for event in events])
 
 
-@app.route('/device/<device>/events/<day>')
+@app.route('/api/device/<device>/events/<day>')
 def get_events(device, day):
     if request.authorization is None:
         return jsonify({}), 401
@@ -44,4 +44,4 @@ def get_events(device, day):
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0')
