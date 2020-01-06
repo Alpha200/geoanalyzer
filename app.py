@@ -16,21 +16,25 @@ with open("config.yaml", "r") as f:
 
 traccar_conf = conf["traccar"]
 
-dl = DataLoader(traccar_conf["base_uri"], traccar_conf["username"], traccar_conf["password"])
-
 
 def map_events_to_json(events, with_geopoints=True):
     return jsonify([event.to_dict(with_geopoints) for event in events])
 
 
-@app.route('/events/<day>')
-def get_events(day):
+@app.route('/device/<device>/events/<day>')
+def get_events(device, day):
+    if request.authorization is None:
+        return jsonify({}), 401
+
+    device_id = int(device)
+
     date = parse(day)
     date = date.replace(microsecond=0, second=0)
     date = date.astimezone(UTC)
 
+    dl = DataLoader(traccar_conf["base_uri"], request.authorization['username'], request.authorization['password'])
     geofences = dl.get_geofences()
-    positions = dl.get_positions(traccar_conf["device_id"], date_from=date, date_to=date + timedelta(days=1))
+    positions = dl.get_positions(device_id, date_from=date, date_to=date + timedelta(days=1))
 
     da = DataAnalyzer(geofences)
     events = da.map_positions_to_events(positions)
