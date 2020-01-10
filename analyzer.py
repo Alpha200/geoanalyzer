@@ -5,6 +5,7 @@ from geopy import distance
 from geopy.geocoders import Nominatim
 from abc import ABC, abstractmethod
 from shapely.geometry import Point, Polygon, MultiPoint
+from werkzeug.exceptions import Unauthorized, InternalServerError
 
 geolocator = Nominatim(user_agent="geoanalyzer")
 
@@ -200,7 +201,11 @@ class DataLoader:
                 return None
 
         r = requests.get("{}/api/geofences".format(self.base_uri), auth=(self.username, self.password))
-        r.raise_for_status()
+
+        if r.status_code == 401:
+            raise Unauthorized()
+        elif r.status_code != 200:
+            raise InternalServerError()
 
         data = r.json()
 
