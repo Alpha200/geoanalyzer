@@ -18,8 +18,8 @@ with open("config.yaml", "r") as f:
 traccar_conf = conf["traccar"]
 
 
-def map_events_to_json(events, with_geopoints=True):
-    return jsonify([event.to_dict(with_geopoints) for event in events])
+def map_events_to_dicts(events, with_geopoints=True):
+    return [event.to_dict(with_geopoints) for event in events]
 
 
 @app.route('/api/device/<device>/events/<day>')
@@ -53,7 +53,7 @@ def get_events(device, day):
     events = da.map_positions_to_events(positions)
 
     with_geopoints = request.args.get('geopoints', 'true') == 'true'
-    return map_events_to_json(events, with_geopoints)
+    return jsonify(date=date.isoformat(), events=map_events_to_dicts(events, with_geopoints))
 
 
 if __name__ == '__main__':
