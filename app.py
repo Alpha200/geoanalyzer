@@ -1,7 +1,7 @@
+import os
 from datetime import timedelta
 
-import yaml
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, current_app
 from dateutil.parser import parse, ParserError
 from flask_cors import CORS
 from pytz import UTC
@@ -12,10 +12,7 @@ from analyzer import DataLoader, DataAnalyzer
 app = Flask(__name__)
 CORS(app)
 
-with open("config.yaml", "r") as f:
-    conf = yaml.safe_load(f)
-
-traccar_conf = conf["traccar"]
+app.config['TRACCAR_URL'] = os.getenv("TRACCAR_URL")
 
 
 def map_events_to_dicts(events, with_geopoints=True):
@@ -40,7 +37,12 @@ def get_events(device, day):
     date = date.replace(microsecond=0, second=0)
     date = date.astimezone(UTC)
 
-    dl = DataLoader(traccar_conf["base_uri"], request.authorization['username'], request.authorization['password'])
+    dl = DataLoader(
+        current_app.config['TRACCAR_URL'],
+        request.authorization['username'],
+        request.authorization['password']
+    )
+
     try:
         geofences = dl.get_geofences()
         positions = dl.get_positions(device_id, date_from=date, date_to=date + timedelta(days=1))
