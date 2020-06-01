@@ -25,7 +25,7 @@ class PolygonGeofence(Geofence):
         self.area = area
 
     def __repr__(self) -> str:
-        return "<PolygonGeofence {} {}>".format(self.name, self.area)
+        return f"<PolygonGeofence {self.name} {self.area}>"
 
     def is_inside(self, point):
         return self.area.contains(Point(point))
@@ -45,7 +45,7 @@ class CircleGeofence(Geofence):
         self.radius = radius
 
     def __repr__(self) -> str:
-        return "<CircleGeofence {} ({}, {})>".format(self.name, self.middle, self.radius)
+        return f"<CircleGeofence {self.name} ({self.middle}, {self.radius})>"
 
     def is_inside(self, point):
         return distance.distance((self.middle.x, self.middle.y), point).m < self.radius
@@ -102,7 +102,7 @@ class ClusterEvent(Event):
         return result
 
     def __repr__(self) -> str:
-        return "<ClusterEvent {} - {}>".format(self.d_from, self.d_to)
+        return f"<ClusterEvent {self.d_from} - {self.d_to}>"
 
 
 class GeofenceEvent(Event):
@@ -124,7 +124,7 @@ class GeofenceEvent(Event):
         return result
 
     def __repr__(self) -> str:
-        return "<GeofenceEvent {} {} - {}>".format(self.geofence.name, self.d_from, self.d_to)
+        return f"<GeofenceEvent {self.geofence.name} {self.d_from} - {self.d_to}>"
 
 
 class TravelEvent(Event):
@@ -200,7 +200,7 @@ class DataLoader:
             else:
                 return None
 
-        r = requests.get("{}/api/geofences".format(self.base_uri), auth=(self.username, self.password))
+        r = requests.get(f"{self.base_uri}/api/geofences", auth=(self.username, self.password))
 
         if r.status_code == 401:
             raise Unauthorized()
@@ -213,12 +213,20 @@ class DataLoader:
         return geofences
 
     def get_positions(self, device_id, date_from, date_to):
-        r = requests.get("{base_uri}/api/positions?deviceId={device_id}&from={d_from}&to={d_to}".format(
-            base_uri=self.base_uri,
-            device_id=device_id,
-            d_from=date_from.strftime("%Y-%m-%dT%H:%MZ"),
-            d_to=date_to.strftime("%Y-%m-%dT%H:%MZ")
-        ), auth=(self.username, self.password))
+        params = {
+            'deviceId': device_id,
+            'from': date_from.strftime("%Y-%m-%dT%H:%MZ"),
+            'to': date_to.strftime("%Y-%m-%dT%H:%MZ")
+        }
+
+        headers = {'Accept': "application/json"}
+
+        r = requests.get(
+            f"{self.base_uri}/api/positions",
+            auth=(self.username, self.password),
+            params=params,
+            headers=headers
+        )
 
         r.raise_for_status()
         data = r.json()
@@ -234,7 +242,9 @@ class DataLoader:
 
 def is_cluster_valid(geopoints):
     points = MultiPoint([point.position for point in geopoints])
-    return not any(distance.distance((points.centroid.x, points.centroid.y), (point.x, point.y)).m > 50 for point in points)
+    return not any(
+        distance.distance((points.centroid.x, points.centroid.y), (point.x, point.y)).m > 50 for point in points
+    )
 
 
 class DataAnalyzer:
@@ -288,8 +298,8 @@ class DataAnalyzer:
                     else:
                         events.append(current_event)
                         current_event = None
-                    #elif is_cluster_valid(current_event.geopoints[1:] + [position]):
-                        # TODO: Check if this cluster is better than the other
+                    # elif is_cluster_valid(current_event.geopoints[1:] + [position]):
+                    # TODO: Check if this cluster is better than the other
                 else:
                     if len(last_geopoints) > 0:
                         distance_between_points = position.distance(last_geopoints[-1])

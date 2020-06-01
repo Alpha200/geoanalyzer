@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 
 from flask import Flask, jsonify, request, current_app
-from dateutil.parser import parse, ParserError
+from dateutil.parser import parse
 from flask_cors import CORS
 from pytz import UTC
 from werkzeug.exceptions import Unauthorized, InternalServerError
@@ -31,7 +31,7 @@ def get_events(device, day):
 
     try:
         date = parse(day)
-    except ParserError:
+    except ValueError:
         return jsonify({'error': 'Invalid date argument'}), 400
 
     date = date.replace(microsecond=0, second=0)
