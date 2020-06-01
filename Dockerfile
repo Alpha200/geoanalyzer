@@ -1,6 +1,6 @@
-FROM python:3.8
+FROM python:3.8-alpine
 
-RUN apt-get update && apt-get install -y libgeos-dev && apt-get clean
+RUN apk add --no-cache geos-dev
 
 WORKDIR /usr/src/app
 
