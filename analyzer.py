@@ -32,9 +32,9 @@ class PolygonGeofence(Geofence):
 
     def to_dict(self):
         return {
-            'type': 'polygon',
-            'name': self.name,
-            'points': list(self.area.exterior.coords)
+            "type": "polygon",
+            "name": self.name,
+            "points": list(self.area.exterior.coords),
         }
 
 
@@ -52,10 +52,10 @@ class CircleGeofence(Geofence):
 
     def to_dict(self):
         return {
-            'type': "circle",
-            'name': self.name,
-            'center': [self.middle.x, self.middle.y],
-            'radius': self.radius
+            "type": "circle",
+            "name": self.name,
+            "center": [self.middle.x, self.middle.y],
+            "radius": self.radius,
         }
 
 
@@ -89,11 +89,11 @@ class ClusterEvent(Event):
         location = geolocator.reverse("{}, {}".format(*self.centroid))
 
         result = {
-            'event_type': "cluster",
-            'from': self.d_from.isoformat(),
-            'to': self.d_to.isoformat(),
-            'centroid': self.centroid,
-            'location': location.address
+            "event_type": "cluster",
+            "from": self.d_from.isoformat(),
+            "to": self.d_to.isoformat(),
+            "centroid": self.centroid,
+            "location": location.address,
         }
 
         if with_geopoints:
@@ -112,10 +112,10 @@ class GeofenceEvent(Event):
 
     def to_dict(self, with_geopoints=True):
         result = {
-            'event_type': "geofence",
-            'from': self.d_from.isoformat(),
-            'to': self.d_to.isoformat(),
-            'geofence': self.geofence.to_dict(),
+            "event_type": "geofence",
+            "from": self.d_from.isoformat(),
+            "to": self.d_to.isoformat(),
+            "geofence": self.geofence.to_dict(),
         }
 
         if with_geopoints:
@@ -142,10 +142,10 @@ class TravelEvent(Event):
 
     def to_dict(self, with_geopoints=True):
         result = {
-            'event_type': "travel",
-            'from': self.d_from.isoformat(),
-            'to': self.d_to.isoformat(),
-            'distance': self.distance,
+            "event_type": "travel",
+            "from": self.d_from.isoformat(),
+            "to": self.d_to.isoformat(),
+            "distance": self.distance,
         }
 
         if with_geopoints:
@@ -165,17 +165,14 @@ class GeoPosition:
 
     def distance(self, other_position):
         """Returns the distance to other_position in m"""
-        return distance.distance(
-            self.position,
-            other_position.position
-        ).m
+        return distance.distance(self.position, other_position.position).m
 
     def to_dict(self):
         return {
-            'date': self.date.isoformat(),
-            'latitude': self.position[0],
-            'longitude': self.position[1],
-            'accuracy': self.accuracy
+            "date": self.date.isoformat(),
+            "latitude": self.position[0],
+            "longitude": self.position[1],
+            "accuracy": self.accuracy,
         }
 
 
@@ -195,12 +192,19 @@ class DataLoader:
                 return CircleGeofence(name, middle, radius)
             elif area_string.startswith("POLYGON"):
                 info = area_string[9:-2]
-                area = Polygon(shell=(tuple(float(value) for value in poly.split(" ")) for poly in info.split(", ")))
+                area = Polygon(
+                    shell=(
+                        tuple(float(value) for value in poly.split(" "))
+                        for poly in info.split(", ")
+                    )
+                )
                 return PolygonGeofence(name, area)
             else:
                 return None
 
-        r = requests.get(f"{self.base_uri}/api/geofences", auth=(self.username, self.password))
+        r = requests.get(
+            f"{self.base_uri}/api/geofences", auth=(self.username, self.password)
+        )
 
         if r.status_code == 401:
             raise Unauthorized()
@@ -214,18 +218,18 @@ class DataLoader:
 
     def get_positions(self, device_id, date_from, date_to):
         params = {
-            'deviceId': device_id,
-            'from': date_from.strftime("%Y-%m-%dT%H:%MZ"),
-            'to': date_to.strftime("%Y-%m-%dT%H:%MZ")
+            "deviceId": device_id,
+            "from": date_from.strftime("%Y-%m-%dT%H:%MZ"),
+            "to": date_to.strftime("%Y-%m-%dT%H:%MZ"),
         }
 
-        headers = {'Accept': "application/json"}
+        headers = {"Accept": "application/json"}
 
         r = requests.get(
             f"{self.base_uri}/api/positions",
             auth=(self.username, self.password),
             params=params,
-            headers=headers
+            headers=headers,
         )
 
         r.raise_for_status()
@@ -234,16 +238,19 @@ class DataLoader:
         return [
             GeoPosition(
                 parse(position["fixTime"]),
-                (position['latitude'], position['longitude']),
-                position['accuracy']
-            ) for position in data
+                (position["latitude"], position["longitude"]),
+                position["accuracy"],
+            )
+            for position in data
         ]
 
 
 def is_cluster_valid(geopoints):
     points = MultiPoint([point.position for point in geopoints])
     return not any(
-        distance.distance((points.centroid.x, points.centroid.y), (point.x, point.y)).m > 50 for point in points
+        distance.distance((points.centroid.x, points.centroid.y), (point.x, point.y)).m
+        > 50
+        for point in points
     )
 
 
@@ -285,7 +292,9 @@ class DataAnalyzer:
                     events.append(current_event)
                     current_event = None
                 elif isinstance(current_event, TravelEvent):
-                    distance_between_points = position.distance(current_event.geopoints[-1])
+                    distance_between_points = position.distance(
+                        current_event.geopoints[-1]
+                    )
 
                     if distance_between_points > 100:
                         current_event.geopoints.append(position)
